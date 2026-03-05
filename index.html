@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Login</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header class="header">
+    <div class="inner">
+      <button class="menu-btn" id="menuBtn" type="button" aria-label="menu"><span></span></button>
+      <div class="brand">LOMASHARES</div>
+    </div>
+  </header>
+
+  <div class="sheet" id="sheet"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-top">
+      <div class="drawer-title">Menu</div>
+      <button class="close-btn" id="closeDrawer" type="button">✕</button>
+    </div>
+    <div class="nav">
+      <a href="index.html">Login <small>access your account</small></a>
+      <a href="register.html">Register <small>create account</small></a>
+      <a href="team.html">Team <small>about us</small></a>
+    </div>
+  </aside>
+
+  <main class="app">
+    <section class="card hero">
+      <div class="hero-row">
+        <div>
+          <h1>Welcome back</h1>
+          <p>Login to continue investing and earning daily.</p>
+        </div>
+      </div>
+
+      <div class="form">
+        <div class="field">
+          <label>Email</label>
+          <input class="input" id="email" type="email" placeholder="you@example.com" autocomplete="email"/>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input class="input" id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
+        </div>
+
+        <button class="btn primary" id="loginBtn" type="button">Login</button>
+        <div class="center" style="margin-top:12px">
+          <a class="small" href="register.html">New here? Create account →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="notice" id="notice"></div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    // ===== CONFIG (PASTE YOUR VALUES) =====
+    const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+    const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const notice = document.getElementById("notice");
+    const toast = (m)=>{ notice.textContent=m; notice.classList.add("show"); setTimeout(()=>notice.classList.remove("show"),2200); };
+
+    // Drawer
+    const drawer = document.getElementById("drawer");
+    const sheet = document.getElementById("sheet");
+    const openDrawer=()=>{drawer.classList.add("show"); sheet.classList.add("show");}
+    const closeDrawerFn=()=>{drawer.classList.remove("show"); sheet.classList.remove("show");}
+    document.getElementById("menuBtn").onclick=openDrawer;
+    document.getElementById("closeDrawer").onclick=closeDrawerFn;
+    sheet.onclick=closeDrawerFn;
+
+    // Session guard: if already logged in -> dashboard
+    (async () => {
+      const { data:{ session } } = await sb.auth.getSession();
+      if (session) location.href = "dashboard.html";
+    })();
+
+    document.getElementById("loginBtn").addEventListener("click", async () => {
+      const email = document.getElementById("email").value.trim().toLowerCase();
+      const password = document.getElementById("password").value;
+
+      if(!email || !password) return toast("Enter email and password");
+
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return toast(error.message);
+
+      toast("Login successful");
+      setTimeout(()=>location.href="dashboard.html", 600);
+    });
+  </script>
+</body>
+        </html>
