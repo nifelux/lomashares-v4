@@ -1,1 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Withdraw</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="header">
+  <div class="inner">
+    <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+    <div class="brand">LOMASHARES</div>
+  </div>
+</header>
 
+<div class="sheet" id="sheet"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-top">
+    <div class="drawer-title">LomaShares</div>
+    <button class="close-btn" id="closeDrawer" type="button">✕</button>
+  </div>
+  <div class="nav">
+    <a href="dashboard.html">Dashboard <small>home</small></a>
+    <a href="investment.html">Invest <small>plans</small></a>
+    <a href="deposit.html">Deposit <small>fund wallet</small></a>
+    <a href="withdraw.html">Withdraw <small>cashout</small></a>
+    <a href="profile.html">Profile <small>account</small></a>
+  </div>
+</aside>
+
+<main class="app">
+  <section class="card hero">
+    <h1 style="margin:0;font-size:18px">Withdraw</h1>
+    <p class="small" style="margin:8px 0 0">
+      Minimum withdrawal is <b>₦500</b>. Requests require admin approval.
+    </p>
+
+    <div class="balance" style="margin-top:14px">
+      <div class="label">Wallet Balance</div>
+      <div class="amt" id="bal">₦0</div>
+      <div class="sub" id="balSub">Loading...</div>
+    </div>
+  </section>
+
+  <section class="card form" style="margin-top:14px">
+    <div class="field">
+      <label>Amount (₦)</label>
+      <input class="input" id="amount" inputmode="numeric" placeholder="Minimum ₦500"/>
+    </div>
+
+    <div class="field">
+      <label>Bank Name</label>
+      <input class="input" id="bank_name" placeholder="e.g. Opay"/>
+    </div>
+    <div class="field">
+      <label>Account Number</label>
+      <input class="input" id="account_number" inputmode="numeric" placeholder="10 digits"/>
+    </div>
+    <div class="field">
+      <label>Account Name</label>
+      <input class="input" id="account_name" placeholder="Full name"/>
+    </div>
+
+    <button class="btn primary" id="submitBtn" type="button" style="margin-top:14px">Request Withdrawal</button>
+    <div class="small" style="margin-top:10px">
+      Your withdrawal will show in history after submission.
+    </div>
+  </section>
+
+  <div class="section-title">Withdrawal History</div>
+  <section class="card list" id="history">
+    <div class="small">Loading...</div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="inner">
+    <a class="ft" href="dashboard.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.6"/></svg>
+      Home
+    </a>
+    <a class="ft" href="investment.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M7 15l3-3 3 3 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Invest
+    </a>
+    <a class="ft" href="team.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0m12 9a6 6 0 0 0-12 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Team
+    </a>
+    <a class="ft active" href="profile.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm8 9a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Profile
+    </a>
+  </div>
+</footer>
+
+<div class="notice" id="notice"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const notice=document.getElementById("notice");
+  const toast=(m)=>{notice.textContent=m;notice.classList.add("show");setTimeout(()=>notice.classList.remove("show"),2400);};
+
+  // Drawer
+  const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+  const openDrawer=()=>{drawer.classList.add("show");sheet.classList.add("show");}
+  const closeDrawer=()=>{drawer.classList.remove("show");sheet.classList.remove("show");}
+  document.getElementById("menuBtn").onclick=openDrawer;
+  document.getElementById("closeDrawer").onclick=closeDrawer;
+  sheet.onclick=closeDrawer;
+
+  const money=(n)=>"₦"+Number(n||0).toLocaleString();
+
+  async function mustLogin(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return null; }
+    return session;
+  }
+  async function apiPost(path, payload, token){
+    const res=await fetch(path,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+      body: JSON.stringify(payload)
+    });
+    const data=await res.json().catch(()=> ({}));
+    return {res,data};
+  }
+
+  async function loadBalance(session){
+    const {res,data}=await apiPost("/api/wallet",{ action:"get" }, session.access_token);
+    if(!res.ok){ document.getElementById("balSub").textContent="Failed to load wallet"; return; }
+    document.getElementById("bal").textContent = money(data.balance||0);
+    document.getElementById("balSub").textContent = "Available for withdrawal.";
+    return Number(data.balance||0);
+  }
+
+  async function loadHistory(session){
+    const box=document.getElementById("history");
+    const {res,data}=await apiPost("/api/withdraw",{ action:"history" }, session.access_token);
+    if(!res.ok){
+      box.innerHTML = `<div class="small">No withdrawal history yet</div>`;
+      return;
+    }
+    const rows=data.withdrawals||[];
+    if(rows.length===0){
+      box.innerHTML = `<div class="small">No withdrawal history yet</div>`;
+      return;
+    }
+    box.innerHTML = rows.map(w=>{
+      const st=(w.status||"pending").toLowerCase();
+      return `
+        <div class="item">
+          <div class="left">
+            <div class="title">${money(w.amount)} • Withdrawal</div>
+            <div class="sub">${new Date(w.created_at||Date.now()).toLocaleString()}</div>
+          </div>
+          <div class="badge ${st}">${st}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  document.getElementById("submitBtn").addEventListener("click", async ()=>{
+    const session=await mustLogin(); if(!session) return;
+
+    const amount = Math.floor(Number((document.getElementById("amount").value||"").replace(/[^0-9]/g,"")));
+    const bank_name = document.getElementById("bank_name").value.trim();
+    const account_number = document.getElementById("account_number").value.trim();
+    const account_name = document.getElementById("account_name").value.trim();
+
+    if(!amount || amount < 500) return toast("Minimum withdrawal is ₦500");
+    if(!bank_name || !account_number || !account_name) return toast("Fill bank details");
+
+    toast("Submitting withdrawal...");
+    const {res,data}=await apiPost("/api/withdraw",{
+      action:"request",
+      amount, bank_name, account_number, account_name
+    }, session.access_token);
+
+    if(!res.ok) return toast(data?.error || "Withdrawal request failed");
+    toast("Withdrawal submitted ✅");
+    document.getElementById("amount").value="";
+    await loadHistory(session);
+    await loadBalance(session);
+  });
+
+  (async()=>{
+    const session=await mustLogin(); if(!session) return;
+    await loadBalance(session);
+    await loadHistory(session);
+  })();
+</script>
+</body>
+        </html>
