@@ -58,8 +58,13 @@ export default async function handler(req, res) {
       });
 
       const out = await rpc.json().catch(() => ({}));
-      if (!rpc.ok) return res.status(500).json({ error: "Gift redeem RPC failed", details: out });
-
+      if (!rpc.ok) {
+  return res.status(rpc.status).json({
+    error: "Gift redeem RPC failed",
+    status: rpc.status,
+    details: out
+  });
+      
       if (!out?.ok) return res.status(400).json({ error: out?.error || "Invalid or already used code" });
 
       return res.status(200).json({ ok: true, amount: out.amount });
