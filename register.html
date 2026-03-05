@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Register</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+  <header class="header">
+    <div class="inner">
+      <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+      <div class="brand">LOMASHARES</div>
+    </div>
+  </header>
+
+  <div class="sheet" id="sheet"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawer-top">
+      <div class="drawer-title">Menu</div>
+      <button class="close-btn" id="closeDrawer" type="button">✕</button>
+    </div>
+    <div class="nav">
+      <a href="index.html">Login <small>access your account</small></a>
+      <a href="register.html">Register <small>create account</small></a>
+      <a href="team.html">Team <small>about us</small></a>
+    </div>
+  </aside>
+
+  <main class="app">
+    <section class="card hero">
+      <h1 style="margin:0;font-size:18px">Create account</h1>
+      <p class="small" style="margin:8px 0 0">Start investing and earning daily income.</p>
+
+      <div class="form">
+        <div class="field">
+          <label>Email</label>
+          <input class="input" id="email" type="email" placeholder="you@example.com"/>
+        </div>
+        <div class="field">
+          <label>Referral Code (optional)</label>
+          <input class="input" id="refCode" type="text" placeholder="LOMA123456"/>
+          <div class="small" id="refStatus" style="margin-top:8px"></div>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input class="input" id="password" type="password" placeholder="Create password"/>
+        </div>
+
+        <button class="btn primary" id="regBtn" type="button">Create Account</button>
+        <div class="center" style="margin-top:12px">
+          <a class="small" href="index.html">Already have an account? Login →</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="notice" id="notice"></div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+    const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    const notice = document.getElementById("notice");
+    const toast=(m)=>{notice.textContent=m;notice.classList.add("show");setTimeout(()=>notice.classList.remove("show"),2200);};
+
+    // Drawer
+    const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+    const openDrawer=()=>{drawer.classList.add("show");sheet.classList.add("show");}
+    const closeDrawer=()=>{drawer.classList.remove("show");sheet.classList.remove("show");}
+    document.getElementById("menuBtn").onclick=openDrawer;
+    document.getElementById("closeDrawer").onclick=closeDrawer;
+    sheet.onclick=closeDrawer;
+
+    // if logged in -> dashboard
+    (async()=>{
+      const {data:{session}}=await sb.auth.getSession();
+      if(session) location.href="dashboard.html";
+    })();
+
+    const refInput=document.getElementById("refCode");
+    const refStatus=document.getElementById("refStatus");
+    let refValid=true;
+
+    async function validateReferral() {
+      const code = refInput.value.trim().toUpperCase();
+      if(!code){ refStatus.textContent=""; refValid=true; return; }
+
+      refStatus.textContent="Checking referral code...";
+      const res = await fetch("/api/referral",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ action:"validate", code })
+      });
+      const data = await res.json().catch(()=> ({}));
+
+      if(res.ok && data.valid){
+        refStatus.textContent="Referral code is valid ✅";
+        refStatus.style.color="#CFE2FF";
+        refValid=true;
+      }else{
+        refStatus.textContent="Invalid referral code ❌";
+        refStatus.style.color="#FFB4B4";
+        refValid=false;
+      }
+    }
+
+    refInput.addEventListener("input", ()=>{
+      clearTimeout(window.__refT);
+      window.__refT=setTimeout(validateReferral, 400);
+    });
+
+    document.getElementById("regBtn").addEventListener("click", async ()=>{
+      const email=document.getElementById("email").value.trim().toLowerCase();
+      const password=document.getElementById("password").value;
+      const ref=refInput.value.trim().toUpperCase();
+
+      if(!email || !password) return toast("Enter email and password");
+      await validateReferral();
+      if(!refValid) return toast("Invalid referral code");
+
+      const { error } = await sb.auth.signUp({
+        email, password,
+        options: {
+          data: { referral_code_used: ref || null }
+        }
+      });
+      if(error) return toast(error.message);
+
+      toast("Account created. Please login.");
+      setTimeout(()=>location.href="index.html", 900);
+    });
+  </script>
+</body>
+</html>
