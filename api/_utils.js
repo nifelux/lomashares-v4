@@ -47,3 +47,17 @@ export function todayWATDateString() {
   const wat = new Date(now.getTime() + 60 * 60 * 1000);
   return wat.toISOString().slice(0, 10);
 }
+
+export async function requireUser(req, SUPABASE_URL, ANON_KEY) {
+  const auth = req.headers.authorization || "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+  if (!token) return null;
+
+  const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    headers: { Authorization: `Bearer ${token}`, apikey: ANON_KEY },
+  });
+
+  const user = await uRes.json();
+  if (!uRes.ok || !user?.id) return null;
+  return user;
+                                                        }
