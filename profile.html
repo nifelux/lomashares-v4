@@ -1,1 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Profile</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="header">
+  <div class="inner">
+    <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+    <div class="brand">LOMASHARES</div>
+  </div>
+</header>
 
+<div class="sheet" id="sheet"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-top">
+    <div class="drawer-title">LomaShares</div>
+    <button class="close-btn" id="closeDrawer" type="button">✕</button>
+  </div>
+  <div class="nav">
+    <a href="dashboard.html">Dashboard <small>home</small></a>
+    <a href="investment.html">Invest <small>plans</small></a>
+    <a href="transactions.html">Transactions <small>history</small></a>
+    <a href="profile.html">Profile <small>account</small></a>
+  </div>
+</aside>
+
+<main class="app">
+  <section class="card hero">
+    <div style="display:flex;gap:14px;align-items:center">
+      <!-- 40% avatar -->
+      <div style="flex:0 0 40%">
+        <div class="card" style="border-radius:18px;overflow:hidden;border:1px solid var(--line);background:rgba(255,255,255,.03)">
+          <div style="aspect-ratio:1/1;display:grid;place-items:center;background:linear-gradient(135deg, rgba(29,107,255,.25), rgba(43,179,255,.10));">
+            <div style="width:76px;height:76px;border-radius:50%;border:2px solid rgba(43,179,255,.55);display:grid;place-items:center;font-weight:900;font-size:22px" id="avatar">LS</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 60% name/email -->
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:900;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="name">Loading...</div>
+        <div class="small" style="margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="email">Loading...</div>
+        <div class="balance" style="margin-top:12px;padding:12px">
+          <div class="label">Wallet Balance</div>
+          <div class="amt" style="font-size:22px" id="bal">₦0</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-title">Account</div>
+  <section class="card list">
+    <button class="btn" onclick="location.href='transactions.html'" style="height:90px;margin-top:10px">Transaction History</button>
+    <button class="btn" onclick="location.href='withdrawals.html'" style="height:90px;margin-top:10px">Withdrawal History</button>
+    <button class="btn" onclick="location.href='deposits.html'" style="height:90px;margin-top:10px">Deposit History</button>
+    <button class="btn" onclick="window.open('https://t.me/YOUR_TELEGRAM_LINK','_blank')" style="height:90px;margin-top:10px">Join Telegram Group</button>
+    <button class="btn" onclick="window.open('https://chat.whatsapp.com/YOUR_WHATSAPP_LINK','_blank')" style="height:90px;margin-top:10px">Join WhatsApp Group</button>
+    <button class="btn primary" id="logoutBtn" style="height:90px;margin-top:10px">Logout</button>
+  </section>
+
+  <div class="section-title">Admin</div>
+  <section class="card list">
+    <button class="btn" onclick="location.href='admin-summary.html'" style="height:90px;margin-top:10px">Admin Summary</button>
+    <button class="btn" onclick="location.href='admin-withdrawals.html'" style="height:90px;margin-top:10px">Approve Withdrawals</button>
+    <button class="btn" onclick="location.href='admin-gift.html'" style="height:90px;margin-top:10px">Generate Gift Code</button>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="inner">
+    <a class="ft" href="dashboard.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.6"/></svg>
+      Home
+    </a>
+    <a class="ft" href="investment.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M7 15l3-3 3 3 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Invest
+    </a>
+    <a class="ft" href="team.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0m12 9a6 6 0 0 0-12 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Team
+    </a>
+    <a class="ft active" href="profile.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm8 9a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Profile
+    </a>
+  </div>
+</footer>
+
+<div class="notice" id="notice"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const notice=document.getElementById("notice");
+  const toast=(m)=>{notice.textContent=m;notice.classList.add("show");setTimeout(()=>notice.classList.remove("show"),2400);};
+
+  // Drawer
+  const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+  const openDrawer=()=>{drawer.classList.add("show");sheet.classList.add("show");}
+  const closeDrawer=()=>{drawer.classList.remove("show");sheet.classList.remove("show");}
+  document.getElementById("menuBtn").onclick=openDrawer;
+  document.getElementById("closeDrawer").onclick=closeDrawer;
+  sheet.onclick=closeDrawer;
+
+  const money=(n)=>"₦"+Number(n||0).toLocaleString();
+
+  async function mustLogin(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return null; }
+    return session;
+  }
+  async function apiPost(path, payload, token){
+    const res=await fetch(path,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+      body: JSON.stringify(payload)
+    });
+    const data=await res.json().catch(()=> ({}));
+    return {res,data};
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", async ()=>{
+    await sb.auth.signOut();
+    location.href="index.html";
+  });
+
+  (async()=>{
+    const session=await mustLogin(); if(!session) return;
+    const email=session.user.email||"";
+    const name=email.split("@")[0] || "Investor";
+
+    document.getElementById("name").textContent = name;
+    document.getElementById("email").textContent = email;
+    document.getElementById("avatar").textContent = (name.slice(0,2)||"LS").toUpperCase();
+
+    const {res,data}=await apiPost("/api/wallet",{ action:"get" }, session.access_token);
+    if(res.ok) document.getElementById("bal").textContent = money(data.balance||0);
+    else toast("Wallet load failed");
+  })();
+</script>
+</body>
+      </html>
