@@ -18,12 +18,10 @@ export default async function handler(req, res) {
   try {
     const body = jsonBody(req);
     const action = String(body.action || "").toLowerCase();
-
     const headers = sbHeaders(SERVICE);
 
     // ----- ADMIN: generate gift code -----
     if (action === "generate") {
-      // simple admin gate (email list) optional later
       const amount = Number(body.amount || 0);
       if (!amount || amount < 1) return res.status(400).json({ error: "Invalid amount" });
 
@@ -34,6 +32,7 @@ export default async function handler(req, res) {
         headers,
         body: JSON.stringify({ code, amount, redeemed: false }),
       });
+
       const j = await ins.json().catch(() => ({}));
       if (!ins.ok) return res.status(500).json({ error: "Gift insert failed", details: j });
 
@@ -52,7 +51,11 @@ export default async function handler(req, res) {
       if (!code) return res.status(400).json({ error: "Code required" });
 
       // fetch gift
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/gift_codes?code=eq.${encodeURIComponent(code)}&select=code,amount,redeemed`, { headers });
+      const r = await fetch(
+        `${SUPABASE_URL}/rest/v1/gift_codes?code=eq.${encodeURIComponent(code)}&select=id,code,amount,redeemed,used_by&limit=1`,
+        { headers }
+      );
+
       const rows = await r.json();
       if (!r.ok) return res.status(500).json({ error: "Gift fetch failed", details: rows });
 
@@ -60,35 +63,51 @@ export default async function handler(req, res) {
       if (!gift) return res.status(400).json({ error: "Invalid code" });
       if (gift.redeemed) return res.status(400).json({ error: "Code already used" });
 
-      const amount = Number(gift.amount);
+      const amount = Number(gift.amount || 0);
 
-      // mark redeemed (idempotent-ish)
-      const up = await fetch(`${SUPABASE_URL}/rest/v1/gift_codes?code=eq.${encodeURIComponent(code)}`, {
+      // ✅ mark redeemed using REAL columns
+      const up = await fetch(`${SUPABASE_URL}/rest/v1/gift_codes?id=eq.${gift.id}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify({ redeemed: true, redeemed_by: user.id, redeemed_at: new Date().toISOString() }),
+        body: JSON.stringify({ redeemed: true, used_by: user.id }),
       });
-      if (!up.ok) return res.status(500).json({ error: "Failed to redeem code" });
+
+      const upJson = await up.json().catch(() => ({}));
+      if (!up.ok) return res.status(500).json({ error: "Failed to redeem code", details: upJson });
 
       // credit wallet
-      const wRes = await fetch(`${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${user.id}&select=balance&limit=1`, { headers });
+      const wRes = await fetch(
+        `${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${encodeURIComponent(user.id)}&select=id,balance&limit=1`,
+        { headers }
+      );
+
       const wRows = await wRes.json();
-      const current = wRows?.[0]?.balance ? Number(wRows[0].balance) : 0;
+      if (!wRes.ok || !wRows?.length) return res.status(500).json({ error: "Wallet fetch failed" });
+
+      const wallet = wRows[0];
+      const current = Number(wallet.balance || 0);
       const newBalance = current + amount;
 
-      const wUp = await fetch(`${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${user.id}`, {
+      const wUp = await fetch(`${SUPABASE_URL}/rest/v1/wallets?id=eq.${wallet.id}`, {
         method: "PATCH",
         headers,
-        body: JSON.stringify({ balance: newBalance, updated_at: new Date().toISOString() }),
+        body: JSON.stringify({ balance: newBalance }),
       });
-      if (!wUp.ok) return res.status(500).json({ error: "Wallet credit failed" });
 
-      // transaction
+      const wUpJson = await wUp.json().catch(() => ({}));
+      if (!wUp.ok) return res.status(500).json({ error: "Wallet credit failed", details: wUpJson });
+
+      // transaction (use columns you showed earlier: type, amount, status)
       await fetch(`${SUPABASE_URL}/rest/v1/transactions`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ user_id: user.id, kind: "gift_redeem", amount, meta: { code } }),
-      });
+        body: JSON.stringify({
+          user_id: user.id,
+          type: "gift",
+          amount,
+          status: "success",
+        }),
+      }).catch(() => {});
 
       return res.status(200).json({ ok: true, amount, balance: newBalance });
     }
@@ -97,4 +116,4 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e?.message || String(e) });
   }
-                          }
+        }
