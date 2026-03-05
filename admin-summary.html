@@ -1,1 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Admin Summary</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="header"><div class="inner">
+  <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+  <div class="brand">LOMASHARES</div>
+</div></header>
 
+<div class="sheet" id="sheet"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-top">
+    <div class="drawer-title">Admin</div>
+    <button class="close-btn" id="closeDrawer" type="button">✕</button>
+  </div>
+  <div class="nav">
+    <a href="admin-summary.html">Admin Summary <small>totals</small></a>
+    <a href="admin-withdrawals.html">Approve Withdrawals <small>one click</small></a>
+    <a href="admin-gift.html">Generate Gift Code <small>bonus</small></a>
+    <a href="profile.html">Profile <small>account</small></a>
+  </div>
+</aside>
+
+<main class="app">
+  <section class="card hero">
+    <h1 style="margin:0;font-size:18px">Admin Summary</h1>
+    <p class="small" style="margin:8px 0 0">Overview of total deposits and withdrawals.</p>
+  </section>
+
+  <section class="card hero" style="margin-top:14px">
+    <div class="grid-2">
+      <div class="balance">
+        <div class="label">Total Deposits</div>
+        <div class="amt" id="td">₦0</div>
+        <div class="sub">All time</div>
+      </div>
+      <div class="balance">
+        <div class="label">Total Withdrawals</div>
+        <div class="amt" id="tw">₦0</div>
+        <div class="sub">All time</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card list" style="margin-top:14px">
+    <button class="btn" onclick="location.href='deposits.html'" style="height:90px;margin-top:10px">View Deposit History</button>
+    <button class="btn" onclick="location.href='withdrawals.html'" style="height:90px;margin-top:10px">View Withdrawal History</button>
+    <button class="btn" onclick="location.href='transactions.html'" style="height:90px;margin-top:10px">View All Transactions</button>
+  </section>
+</main>
+
+<div class="notice" id="notice"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL="YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON="YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb=supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const money=(n)=>"₦"+Number(n||0).toLocaleString();
+
+  // Drawer
+  const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+  document.getElementById("menuBtn").onclick=()=>{drawer.classList.add("show");sheet.classList.add("show");};
+  document.getElementById("closeDrawer").onclick=()=>{drawer.classList.remove("show");sheet.classList.remove("show");};
+  sheet.onclick=()=>{drawer.classList.remove("show");sheet.classList.remove("show");};
+
+  async function mustLogin(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return null; }
+    return session;
+  }
+  async function apiPost(path,payload,token){
+    const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(payload)});
+    const d=await r.json().catch(()=>({})); return {r,d};
+  }
+
+  (async()=>{
+    const s=await mustLogin(); if(!s) return;
+    const {r,d}=await apiPost("/api/admin-summary",{action:"totals"}, s.access_token);
+    if(!r.ok) return;
+    document.getElementById("td").textContent = money(d.total_deposits||0);
+    document.getElementById("tw").textContent = money(d.total_withdrawals||0);
+  })();
+</script>
+</body>
+                                                       </html>
