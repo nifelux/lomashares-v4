@@ -1,1 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Approve Withdrawals</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="header"><div class="inner">
+  <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+  <div class="brand">LOMASHARES</div>
+</div></header>
 
+<div class="sheet" id="sheet"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-top">
+    <div class="drawer-title">Admin</div>
+    <button class="close-btn" id="closeDrawer" type="button">✕</button>
+  </div>
+  <div class="nav">
+    <a href="admin-withdrawals.html">Approve Withdrawals <small>pending</small></a>
+    <a href="admin-summary.html">Admin Summary <small>totals</small></a>
+    <a href="admin-gift.html">Generate Gift Code <small>bonus</small></a>
+    <a href="profile.html">Profile <small>account</small></a>
+  </div>
+</aside>
+
+<main class="app">
+  <section class="card hero">
+    <h1 style="margin:0;font-size:18px">Pending Withdrawals</h1>
+    <p class="small" style="margin:8px 0 0">Approve and auto-send via Paystack transfer.</p>
+  </section>
+
+  <section class="card list" id="list" style="margin-top:14px">
+    <div class="small">Loading...</div>
+  </section>
+</main>
+
+<div class="notice" id="notice"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL="YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON="YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb=supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const notice=document.getElementById("notice");
+  const toast=(m)=>{notice.textContent=m;notice.classList.add("show");setTimeout(()=>notice.classList.remove("show"),2400);};
+  const money=(n)=>"₦"+Number(n||0).toLocaleString();
+
+  // Drawer
+  const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+  document.getElementById("menuBtn").onclick=()=>{drawer.classList.add("show");sheet.classList.add("show");};
+  document.getElementById("closeDrawer").onclick=()=>{drawer.classList.remove("show");sheet.classList.remove("show");};
+  sheet.onclick=()=>{drawer.classList.remove("show");sheet.classList.remove("show");};
+
+  async function mustLogin(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return null; }
+    return session;
+  }
+  async function apiPost(path,payload,token){
+    const r=await fetch(path,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:JSON.stringify(payload)});
+    const d=await r.json().catch(()=>({})); return {r,d};
+  }
+
+  async function loadList(session){
+    const box=document.getElementById("list");
+    const {r,d}=await apiPost("/api/admin-withdrawals",{action:"list"}, session.access_token);
+    if(!r.ok){
+      box.innerHTML=`<div class="small">No pending withdrawals</div>`;
+      return;
+    }
+    const rows=d.withdrawals||[];
+    if(rows.length===0){
+      box.innerHTML=`<div class="small">No pending withdrawals</div>`;
+      return;
+    }
+    box.innerHTML = rows.map(w=>`
+      <div class="item">
+        <div class="left">
+          <div class="title">${money(w.amount)} • ${w.account_name || "Account"}</div>
+          <div class="sub">${w.bank_name||""} • ${w.account_number||""}<br>${new Date(w.created_at||Date.now()).toLocaleString()}</div>
+        </div>
+        <button class="btn primary" style="width:auto" data-approve="${w.id}">Approve</button>
+      </div>
+    `).join("");
+
+    box.querySelectorAll("[data-approve]").forEach(btn=>{
+      btn.addEventListener("click", ()=>approve(session, btn.dataset.approve));
+    });
+  }
+
+  async function approve(session, id){
+    toast("Approving...");
+    const {r,d}=await apiPost("/api/admin-withdrawals",{action:"approve", withdrawal_id:id}, session.access_token);
+    if(!r.ok) return toast(d?.error || "Approval failed");
+    toast("Approved & sent ✅");
+    await loadList(session);
+  }
+
+  (async()=>{
+    const s=await mustLogin(); if(!s) return;
+    await loadList(s);
+  })();
+</script>
+</body>
+  </html>
