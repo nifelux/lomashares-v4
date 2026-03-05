@@ -1,3 +1,4 @@
+// api/_utils.js
 export function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
@@ -7,23 +8,17 @@ export function cors(res) {
 export function getEnv() {
   const SUPABASE_URL =
     process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    process.env.VITE_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   const SERVICE =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SERVICE_KEY ||
-    process.env.SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   const ANON =
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_ANON ||
-    process.env.VITE_SUPABASE_ANON_KEY;
+    process.env.SUPABASE_ANON_KEY;
 
   const PAYSTACK =
-    process.env.PAYSTACK_SECRET_KEY ||
-    process.env.PAYSTACK_SECRET;
+    process.env.PAYSTACK_SECRET_KEY;
 
   return { SUPABASE_URL, SERVICE, ANON, PAYSTACK };
 }
@@ -54,23 +49,4 @@ export function sbHeaders(serviceKey) {
     "Content-Type": "application/json",
     Accept: "application/json",
   };
-}
-
-export function todayWATDateString() {
-  const now = new Date();
-  const wat = new Date(now.getTime() + 60 * 60 * 1000); // WAT = UTC+1
-  return wat.toISOString().slice(0, 10);
-}
-
-export async function requireUser(req, SUPABASE_URL, ANON_KEY) {
-  const token = bearer(req);
-  if (!token) return null;
-
-  const uRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: { Authorization: `Bearer ${token}`, apikey: ANON_KEY },
-  });
-  const user = await uRes.json();
-  if (!uRes.ok || !user?.id) return null;
-
-  return user;
 }
