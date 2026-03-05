@@ -40,31 +40,30 @@ export default async function handler(req, res) {
     }
 
     // ----- USER: redeem gift code -----
-    if (action === "redeem") {
-      const token = bearer(req);
-      if (!token) return res.status(401).json({ error: "Missing auth token" });
+if (action === "redeem") {
+  const token = bearer(req);
+  if (!token) return res.status(401).json({ error: "Missing auth token" });
 
-      const user = await getUserFromToken(SUPABASE_URL, ANON, token);
-      if (!user) return res.status(401).json({ error: "Invalid session" });
+  const user = await getUserFromToken(SUPABASE_URL, ANON, token);
+  if (!user) return res.status(401).json({ error: "Invalid session" });
 
-      const code = String(body.code || "").trim().toUpperCase();
-      if (!code) return res.status(400).json({ error: "Code required" });
+  const code = String(body.code || "").trim();
+  if (!code) return res.status(400).json({ error: "Code required" });
 
-      // fetch gift
-      const r = await fetch(
-        `${SUPABASE_URL}/rest/v1/gift_codes?code=eq.${encodeURIComponent(code)}&select=id,code,amount,redeemed,used_by&limit=1`,
-        { headers }
-      );
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/redeem_gift_code`, {
+    method: "POST",
+    headers: sbHeaders(SERVICE),
+    body: JSON.stringify({ p_user_id: user.id, p_code: code }),
+  });
 
-      const rows = await r.json();
-      if (!r.ok) return res.status(500).json({ error: "Gift fetch failed", details: rows });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) return res.status(500).json({ error: "Redeem failed", details: j });
 
-      const gift = rows?.[0];
-      if (!gift) return res.status(400).json({ error: "Invalid code" });
-      if (gift.redeemed) return res.status(400).json({ error: "Code already used" });
+  if (!j.ok) return res.status(400).json({ error: j.error || "Invalid or already used code" });
 
-      const amount = Number(gift.amount || 0);
-
+  return res.status(200).json({ ok: true, amount: j.amount });
+        }
+      
       // ✅ mark redeemed using REAL columns
       const up = await fetch(`${SUPABASE_URL}/rest/v1/gift_codes?id=eq.${gift.id}`, {
         method: "PATCH",
