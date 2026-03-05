@@ -64,16 +64,7 @@ if (action === "redeem") {
   return res.status(200).json({ ok: true, amount: j.amount });
         }
       
-      // ✅ mark redeemed using REAL columns
-      const up = await fetch(`${SUPABASE_URL}/rest/v1/gift_codes?id=eq.${gift.id}`, {
-        method: "PATCH",
-        headers,
-        body: JSON.stringify({ redeemed: true, used_by: user.id }),
-      });
-
-      const upJson = await up.json().catch(() => ({}));
-      if (!up.ok) return res.status(500).json({ error: "Failed to redeem code", details: upJson });
-
+      
       // credit wallet
       const wRes = await fetch(
         `${SUPABASE_URL}/rest/v1/wallets?user_id=eq.${encodeURIComponent(user.id)}&select=id,balance&limit=1`,
