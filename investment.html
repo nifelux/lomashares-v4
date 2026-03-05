@@ -1,1 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>LomaShares • Investment</title>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<header class="header">
+  <div class="inner">
+    <button class="menu-btn" id="menuBtn" type="button"><span></span></button>
+    <div class="brand">LOMASHARES</div>
+  </div>
+</header>
 
+<div class="sheet" id="sheet"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-top">
+    <div class="drawer-title">LomaShares</div>
+    <button class="close-btn" id="closeDrawer" type="button">✕</button>
+  </div>
+  <div class="nav">
+    <a href="dashboard.html">Dashboard <small>home</small></a>
+    <a href="investment.html">Invest <small>plans</small></a>
+    <a href="deposit.html">Deposit <small>fund wallet</small></a>
+    <a href="profile.html">Profile <small>account</small></a>
+  </div>
+</aside>
+
+<main class="app">
+  <section class="card hero">
+    <h1 style="margin:0;font-size:18px">Investment</h1>
+    <p class="small" style="margin:8px 0 0">Active investments show here. Daily income credits at 1AM WAT.</p>
+  </section>
+
+  <div class="section-title">Your Active Investments</div>
+  <section class="card list" id="activeInvestments">
+    <div class="small">Loading...</div>
+  </section>
+
+  <div class="section-title">Choose a Product</div>
+  <section class="products" id="productsGrid"></section>
+</main>
+
+<footer class="footer">
+  <div class="inner">
+    <a class="ft" href="dashboard.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1v-9.5Z" stroke="currentColor" stroke-width="1.6"/></svg>
+      Home
+    </a>
+    <a class="ft active" href="investment.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M4 19V5m0 14h16M7 15l3-3 3 3 5-6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Invest
+    </a>
+    <a class="ft" href="team.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M16 11a4 4 0 1 0-8 0m12 9a6 6 0 0 0-12 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Team
+    </a>
+    <a class="ft" href="profile.html">
+      <svg class="ico" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm8 9a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+      Profile
+    </a>
+  </div>
+</footer>
+
+<div class="notice" id="notice"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL = "YOUR_SUPABASE_URL_HERE";
+  const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY_HERE";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  const notice=document.getElementById("notice");
+  const toast=(m)=>{notice.textContent=m;notice.classList.add("show");setTimeout(()=>notice.classList.remove("show"),2400);};
+
+  // Drawer
+  const drawer=document.getElementById("drawer"), sheet=document.getElementById("sheet");
+  const openDrawer=()=>{drawer.classList.add("show");sheet.classList.add("show");}
+  const closeDrawer=()=>{drawer.classList.remove("show");sheet.classList.remove("show");}
+  document.getElementById("menuBtn").onclick=openDrawer;
+  document.getElementById("closeDrawer").onclick=closeDrawer;
+  sheet.onclick=closeDrawer;
+
+  const PRODUCTS = [
+    { id: 1, price: 3000 },
+    { id: 2, price: 5000 },
+    { id: 3, price: 10000 },
+    { id: 4, price: 30000 },
+    { id: 5, price: 100000 },
+    { id: 6, price: 200000 },
+    { id: 7, price: 300000 },
+    { id: 8, price: 400000 },
+    { id: 9, price: 500000 },
+    { id: 10, price: 1000000 }
+  ];
+  const money=(n)=>"₦"+Number(n||0).toLocaleString();
+  const daily=(amt)=>Math.floor((Number(amt)*2)/30);
+
+  async function mustLogin(){
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session){ location.href="index.html"; return null; }
+    return session;
+  }
+  async function apiPost(path, payload, token){
+    const res=await fetch(path,{
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Authorization":"Bearer "+token },
+      body: JSON.stringify(payload)
+    });
+    const data=await res.json().catch(()=> ({}));
+    return {res,data};
+  }
+  async function apiGet(path, token){
+    const res=await fetch(path,{ method:"GET", headers:{ "Authorization":"Bearer "+token }});
+    const data=await res.json().catch(()=> ({}));
+    return {res,data};
+  }
+
+  function renderProducts(){
+    const grid=document.getElementById("productsGrid");
+    grid.innerHTML = PRODUCTS.map(p=>`
+      <section class="card product">
+        <div class="p-top">
+          <div class="p-name">Plan ${p.id}</div>
+          <div class="p-pill">30 Days • 200%</div>
+        </div>
+        <div class="p-price">${money(p.price)}</div>
+        <div class="p-meta">
+          <div><small>Daily Income</small><strong>${money(daily(p.price))}</strong></div>
+          <div><small>Total Return</small><strong>${money(p.price*2)}</strong></div>
+        </div>
+        <div class="p-actions">
+          <button class="btn primary" data-invest="${p.id}">Invest</button>
+          <button class="btn" onclick="location.href='deposit.html'">Deposit</button>
+        </div>
+      </section>
+    `).join("");
+
+    grid.querySelectorAll("[data-invest]").forEach(b=>{
+      b.addEventListener("click", ()=> startInvest(Number(b.dataset.invest)));
+    });
+  }
+
+  function renderActive(list){
+    const box=document.getElementById("activeInvestments");
+    if(!list || list.length===0){
+      box.innerHTML = `
+        <div class="item">
+          <div class="left">
+            <div class="title">No active investment yet</div>
+            <div class="sub">Choose a plan below to start earning daily.</div>
+          </div>
+          <div class="badge">empty</div>
+        </div>`;
+      return;
+    }
+
+    box.innerHTML = list.map(inv=>{
+      const status=(inv.status||"active").toLowerCase();
+      const prod=PRODUCTS.find(p=>p.id===inv.product_id) || {price:inv.amount||0};
+      return `
+        <div class="item">
+          <div class="left">
+            <div class="title">Plan ${inv.product_id} • ${money(inv.amount || prod.price)}</div>
+            <div class="sub">
+              Daily: <b>${money(inv.daily_income || daily(prod.price))}</b> •
+              Paid: <b>${inv.days_paid || 0}/${inv.days_total || 30}</b>
+            </div>
+          </div>
+          <div class="badge ${status}">${status}</div>
+        </div>`;
+    }).join("");
+  }
+
+  async function loadActive(session){
+    const {res,data}=await apiGet("/api/investment", session.access_token);
+    if(!res.ok){
+      renderActive([]);
+      toast(data?.error || "Failed to load investments");
+      return;
+    }
+    renderActive(data.investments || []);
+  }
+
+  async function startInvest(productId){
+    const session=await mustLogin();
+    if(!session) return;
+
+    toast("Processing investment...");
+    const {res,data}=await apiPost("/api/investment",{ product_id: productId }, session.access_token);
+    if(!res.ok){
+      toast(data?.error || "Investment failed");
+      return;
+    }
+
+    toast("Investment successful!");
+    await loadActive(session);
+  }
+
+  (async()=>{
+    const session=await mustLogin();
+    if(!session) return;
+
+    // catch-up earnings
+    await apiPost("/api/investment",{ action:"sync" }, session.access_token);
+
+    renderProducts();
+    await loadActive(session);
+  })();
+</script>
+</body>
+  </html>
